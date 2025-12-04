@@ -16,7 +16,8 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-BACKEND_URL = "http://localhost:5000"
+BACKEND_URL = "https://manufacturer-backend.onrender.com"
+
 
 st.set_page_config(
     page_title="Manufacturer Trust Evaluation",
