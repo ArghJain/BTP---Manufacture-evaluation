@@ -16,8 +16,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-BACKEND_URL = "https://btp-manufacture-evaluation-2.onrender.com"
-
+BACKEND_URL = "http://localhost:5000"
 st.set_page_config(
     page_title="Manufacturer Trust Evaluation",
     layout="wide",
@@ -271,6 +270,50 @@ with tab_explain:
         st.info("💡 Run a prediction first to see local SHAP explanation.")
 
     st.markdown("---")
+
+    # In your Prediction tab or Explainability tab
+    if st.button("🎯 Get Prediction & Explanation"):
+        response = requests.post(
+            f"{BACKEND_URL}/predict",
+            json=payload,
+            timeout=60
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            
+            # Display trust score
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Trust Score", f"{result['trust_score']:.1%}")
+            
+            # Display explanation
+            if "explanation" in result and result["explanation"]:
+                exp = result["explanation"]
+                
+                st.markdown(f"### {exp['trust_level']}")
+                st.write(f"**{exp['summary']}**")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("### ✅ Strengths")
+                    for strength in exp.get("strengths", []):
+                        st.write(strength)
+                
+                with col2:
+                    st.markdown("### ❌ Weaknesses")
+                    for weakness in exp.get("weaknesses", []):
+                        st.write(weakness)
+                
+                st.markdown("### 🎯 How to Improve")
+                for rec in exp.get("recommendations", []):
+                    st.write(rec)
+            
+            # Optional: Show technical SHAP chart
+            if st.checkbox("📊 Show Technical SHAP Details"):
+                st.json(result["local_shap"][:10])  # Top 10 SHAP values
+
     
     # Global SHAP
     st.write("**Global Importance** (across all validation data)")

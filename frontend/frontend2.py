@@ -62,8 +62,6 @@ st.markdown("""
 # =====================================================================
 
 BACKEND_URL = "http://localhost:5000"
-# BACKEND_URL = "https://krm7krl3-5000.inc1.devtunnels.ms/"
-
 
 @st.cache_data
 def get_global_shap():
@@ -325,9 +323,8 @@ with tab1:
     else:
         st.info("💡 Click '🚀 Predict Trust Score' to get started!")
 
-
 # ===========================
-# TAB 2: EXPLAINABILITY (WITH GROQ)
+# TAB 2: EXPLAINABILITY
 # ===========================
 
 with tab2:
@@ -371,8 +368,8 @@ with tab2:
             
             st.markdown("---")
             
-            # ========== GROQ AI EXPLANATION ==========
-            st.markdown("### 📝 AI-Powered Explanation (Powered by Groq)")
+            # Easy Explanation
+            st.markdown("### 📝 Easy-to-Understand Explanation")
             
             df_all_shap = pd.DataFrame(local_shap)
             positive = df_all_shap[df_all_shap['shap_value'] > 0.001].sort_values('shap_value', ascending=False)
@@ -424,187 +421,39 @@ with tab2:
             
             st.markdown("---")
             
-            # ========== FIXED: FREE GROQ AI RECOMMENDATIONS (ULTRA-SIMPLE) ==========
-            st.markdown("### 🎯 AI-Generated Recommendations (Powered by Groq)")
-
-            # Create prompt for Groq
-            top_negative = negative.head(3)
-            negative_factors = ", ".join([row['feature'].replace("_", " ").title() for _, row in top_negative.iterrows()])
-
-            top_positive = positive.head(3)
-            positive_factors = ", ".join([row['feature'].replace("_", " ").title() for _, row in top_positive.iterrows()])
-
-            prompt = f"""You are a business consultant specializing in manufacturing and supply chain management.
-
-            A manufacturer has been evaluated with the following trust score analysis:
-            - Overall Trust Score: {trust_score*100:.1f}/100 ({trust_level})
-            - Top Strengths: {positive_factors if len(positive_factors) > 0 else "None identified"}
-            - Main Weaknesses: {negative_factors if len(negative_factors) > 0 else "None identified"}
-
-            Based on this analysis, provide:
-            1. A brief executive summary (2-3 sentences) of their trustworthiness level
-            2. Specific, actionable recommendations to improve (3-4 bullet points with concrete actions)
-            3. Immediate steps they should take in the next 30 days to boost trust score
-
-            Be professional, constructive, and focus on business impact. Keep response concise."""
-
-            # Button to generate AI explanation
-            if st.button("🚀 Generate AI Analysis (Groq)", use_container_width=True, key="btn_ai_explain_groq"):
-                with st.spinner("⚡ Generating AI-powered explanation (Groq)..."):
-                    try:
-                        from groq import Groq
-                        
-                        # Initialize Groq client
-                        api_key = st.secrets.get("GROQ_API_KEY")
-                        
-                        if not api_key:
-                            st.error("❌ GROQ_API_KEY not found in secrets")
-                            st.info("""
-                            **Setup Required:**
-                            1. Create `.streamlit/secrets.toml` in your project root
-                            2. Add: `GROQ_API_KEY = "gsk_your_actual_key"`
-                            3. Get key from: https://console.groq.com
-                            """)
-                        else:
-                            client = Groq(api_key=api_key)
-                            
-                            try:
-                                chat_completion = client.chat.completions.create(
-                                    messages=[{"role": "user", "content": prompt}],
-                                    model="llama-3.3-70b-versatile",
-                                    temperature=0.7,
-                                    max_tokens=1000
-                                )
-                                
-                                # ✅ EXTRACT TEXT PROPERLY
-                                ai_text = None
-                                
-                                # Method 1: Standard way
-                                try:
-                                    ai_text = chat_completion.choices.message.content
-                                except:
-                                    pass
-                                
-                                # Method 2: Alternative way
-                                if not ai_text:
-                                    try:
-                                        ai_text = chat_completion.choices.content
-                                    except:
-                                        pass
-                                
-                                # Method 3: Parse from string if needed
-                                if not ai_text:
-                                    response_str = str(chat_completion)
-                                    if "content=" in response_str:
-                                        start = response_str.find("content='") + len("content='")
-                                        end = response_str.find("'", start)
-                                        if start > len("content='") - 1 and end > start:
-                                            ai_text = response_str[start:end]
-                                
-                                # Display the text
-                                if ai_text and len(ai_text.strip()) > 0:
-                                    st.success("✅ AI Analysis Generated!")
-                                    st.markdown("---")
-                                    st.markdown("### 🤖 AI Consultant's Analysis")
-                                    
-                                    # Clean escape sequences
-                                    ai_text = ai_text.replace('\\n', '\n').replace('\\t', '\t')
-                                    
-                                    # Parse and format
-                                    lines = ai_text.split('\n')
-                                    
-                                    current_section = None
-                                    for line in lines:
-                                        line = line.rstrip()
-                                        
-                                        if not line.strip():
-                                            continue
-                                        
-                                        # Check if this is a section header
-                                        if any(keyword in line.upper() for keyword in ['EXECUTIVE', 'SUMMARY', 'RECOMMENDATIONS', 'ACTIONS', 'STEPS', 'IMMEDIATE']):
-                                            # Display as bold header
-                                            if line.endswith(':'):
-                                                st.markdown(f"#### 📌 {line[:-1]}")
-                                            else:
-                                                st.markdown(f"#### 📌 {line}")
-                                            current_section = 'header'
-                                        
-                                        # Check if this is a bullet point
-                                        elif line.strip().startswith(('•', '*', '-')):
-                                            # Remove bullet and display
-                                            bullet_text = line.strip()[1:].strip()
-                                            st.markdown(f"- {bullet_text}")
-                                        
-                                        # Check if this is numbered
-                                        elif line.strip() and len(line.strip()) > 2 and line.strip().isdigit() and line.strip() == '.':
-                                            st.markdown(f"**{line.strip()}**")
-                                        
-                                        # Regular text
-                                        else:
-                                            st.write(line)
-                                    
-                                    st.markdown("---")
-                                    
-                                    # Save to session
-                                    st.session_state.ai_explanation = ai_text
-                                else:
-                                    st.error("❌ Could not extract text from response")
-                            
-                            except Exception as api_error:
-                                st.error(f"❌ API Error: {str(api_error)}")
-
-                    except ImportError:
-                        st.error("❌ Groq not installed: pip install groq")
-                    except Exception as e:
-                        st.error(f"❌ Error: {str(e)}")
-
-            # # Display cached version
-            # if "ai_explanation" in st.session_state and st.session_state.ai_explanation:
-            #     st.markdown("---")
-            #     st.markdown("### 📋 Saved Analysis")
-                
-            #     # Format the cached version
-            #     lines = st.session_state.ai_explanation.split('\n')
-            #     for line in lines:
-            #         line = line.rstrip()
-            #         if not line.strip():
-            #             continue
+            # Recommendations
+            st.markdown("### 🎯 Recommended Actions")
+            
+            if len(negative) > 0:
+                recommendations = []
+                for idx, (i, row) in enumerate(negative.head(3).iterrows()):
+                    feature = row['feature'].lower()
+                    feature_display = row['feature'].replace("_", " ").title()
                     
-            #         if any(keyword in line.upper() for keyword in ['EXECUTIVE', 'SUMMARY', 'RECOMMENDATIONS', 'ACTIONS', 'STEPS']):
-            #             if line.endswith(':'):
-            #                 st.markdown(f"#### 📌 {line[:-1]}")
-            #             else:
-            #                 st.markdown(f"#### 📌 {line}")
-            #         elif line.strip().startswith(('•', '*', '-')):
-            #             bullet_text = line.strip()[1:].strip()
-            #             st.markdown(f"- {bullet_text}")
-            #         elif line.strip() and len(line.strip()) > 2 and line.strip().isdigit() and line.strip() == '.':
-            #             st.markdown(f"**{line.strip()}**")
-            #         else:
-            #             st.write(line)
+                    if "defect" in feature:
+                        rec = f"🔧 **Reduce {feature_display}**: Invest in quality control"
+                    elif "breach" in feature or "complaint" in feature:
+                        rec = f"🛡️ **Address {feature_display}**: Implement robust processes"
+                    elif "violation" in feature or "compliance" in feature:
+                        rec = f"⚖️ **Ensure {feature_display}**: Meet regulatory requirements"
+                    elif "rating" in feature or "reputation" in feature:
+                        rec = f"🌟 **Improve {feature_display}**: Focus on customer satisfaction"
+                    elif "debt" in feature or "margin" in feature:
+                        rec = f"💰 **Strengthen {feature_display}**: Improve financial health"
+                    else:
+                        rec = f"📌 **Priority: {feature_display}**: Key area for improvement"
+                    
+                    recommendations.append(rec)
                 
-            #     st.markdown("---")
-                
-                # Download and copy buttons
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.download_button(
-                        label="📥 Download as .txt",
-                        data=st.session_state.ai_explanation,
-                        file_name="ai_analysis.txt",
-                        mime="text/plain"
-                    )
-                with col2:
-                    st.text_area(
-                        "📋 Copy text:",
-                        value=st.session_state.ai_explanation,
-                        height=150,
-                        disabled=True
-                    )
-
+                for rec in recommendations:
+                    st.markdown(rec)
+            else:
+                st.success("🎉 **Excellent!** No specific recommendations needed - all areas strong!")
+            
+            st.markdown("---")
             
             # Key Insight
-            st.markdown("### 💡 Quick Insight")
+            st.markdown("### 💡 Key Insight")
             
             try:
                 insight_parts = []
@@ -656,7 +505,6 @@ with tab2:
         st.plotly_chart(fig2, use_container_width=True)
     else:
         st.warning("Global SHAP data not available")
-
 
 # ===========================
 # TAB 3: ANOMALY DETECTION
